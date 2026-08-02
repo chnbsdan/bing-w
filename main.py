@@ -1,4 +1,4 @@
-# main.py - 完整修正版（支持多地区抓取 + 安全追加数据，绝不覆盖历史）
+# main.py - 稳定版，绝不会覆盖历史数据
 
 import os
 import time
@@ -17,7 +17,6 @@ url_base = "https://cn.bing.com"
 img_prefix = "BW"
 MSG_LEN = 50
 
-# ★★★ 定义要抓取的所有地区列表 ★★★
 REGIONS = ['zh-CN', 'en-US', 'ja-JP', 'fr-FR', 'de-DE']
 
 def get_current_time():
@@ -28,7 +27,7 @@ def notify(message):
 
 def create_parser():
     parser = argparse.ArgumentParser(
-        description='Bing Wallpaper Fetcher (Multi-Region)',
+        description='Bing Wallpaper Fetcher',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     group = parser.add_mutually_exclusive_group()
@@ -68,15 +67,10 @@ def load_database(database_path: str, no_history: bool) -> pd.DataFrame:
     if os.path.exists(database_path) and not no_history:
         try:
             df = pd.read_csv(database_path, encoding='utf-8')
-            # 如果缺少 region 列，自动添加并填充 'zh-CN'
             if 'region' not in df.columns:
                 df['region'] = 'zh-CN'
                 notify("Added 'region' column with default value 'zh-CN'")
-            missing_cols = [col for col in required_columns if col not in df.columns]
-            if missing_cols:
-                notify(f"Database missing required fields: {', '.join(missing_cols)}")
-                return pd.DataFrame(columns=required_columns)
-            return df[required_columns].astype({'date': str, 'region': str})
+            return df
         except Exception as e:
             notify(f"Failed to load database: {str(e)}")
             return pd.DataFrame(columns=required_columns)
@@ -86,23 +80,11 @@ def load_database(database_path: str, no_history: bool) -> pd.DataFrame:
     return pd.DataFrame(columns=required_columns)
 
 def fetch_region(region: str) -> list:
-    """获取指定地区的壁纸数据（只抓取当天）"""
     try:
-        # ★★★ 强制只抓取当天（idx=0）★★★
         api_url = f"https://cn.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1&mkt={region}&nc=1614319565639&pid=hp&FORM=BEHPTB&uhd=1"
         response = requests.get(api_url, timeout=10)
         response.raise_for_status()
         image_data = response.json()['images'][0]
-        
-        # ★★★ 获取当前日期（按北京时间）★★★
-        from datetime import datetime, timezone, timedelta
-        beijing_tz = timezone(timedelta(hours=8))
-        today = datetime.now(beijing_tz).strftime('%Y%m%d')
-        
-        # ★★★ 如果抓到的日期不是今天，跳过 ★★★
-        if image_data['enddate'] != today:
-            notify(f"Region {region}: Skipping {image_data['enddate']} (not today)")
-            return []
         
         return [{
             'date': image_data['enddate'],
@@ -116,16 +98,18 @@ def fetch_region(region: str) -> list:
         return []
 
 def update_database(existing_df: pd.DataFrame) -> pd.DataFrame:
-    """更新数据库 - 安全地追加新数据，绝不覆盖历史记录"""
+    """追加新数据到现有数据，绝不覆盖"""
+    
+    # 如果现有数据为空，创建空的 DataFrame
+    if existing_df is None or len(existing_df) == 0:
+        existing_df = pd.DataFrame(columns=['date', 'title', 'url', 'description', 'region'])
+    
+    # 确保有 region 列
+    if 'region' not in existing_df.columns:
+        existing_df['region'] = 'zh-CN'
+    
     all_new_records = []
     
-    # 获取当前日期（北京时间）
-    from datetime import datetime, timezone, timedelta
-    beijing_tz = timezone(timedelta(hours=8))
-    today = datetime.now(beijing_tz).strftime('%Y%m%d')
-    notify(f"Today is: {today}")
-    
-    # 1. 抓取所有地区的新数据
     for region in REGIONS:
         notify(f'Requesting Bing API for region: {region}...')
         records = fetch_region(region)
@@ -137,44 +121,42 @@ def update_database(existing_df: pd.DataFrame) -> pd.DataFrame:
         notify("No new records fetched from any region")
         return existing_df
     
-    new_df = pd.DataFrame(all_new_records).astype({'date': str, 'region': str})
+    new_df = pd.DataFrame(all_new_records)
     
-    # 2. 确保现有数据有 region 列
-    if 'region' not in existing_df.columns:
-        existing_df['region'] = 'zh-CN'
-        notify("Existing data missing 'region' column, set to 'zh-CN'")
+    # ★★★ 关键：只追加不存在的记录 ★★★
+    # 创建现有记录的键集合
+    existing_keys = set()
+    for idx, row in existing_df.iterrows():
+        key = f"{row['date']}_{row['region']}"
+        existing_keys.add(key)
     
-    # ★★★ 3. 关键修复：合并数据，保留所有历史 ★★★
-    # 创建一个包含所有现有记录唯一标识的集合 (date, region)
-    existing_keys = set(zip(existing_df['date'], existing_df['region']))
+    # 筛选出新记录
+    records_to_add = []
+    for idx, row in new_df.iterrows():
+        key = f"{row['date']}_{row['region']}"
+        if key not in existing_keys:
+            records_to_add.append(row)
     
-    # 只选择新数据中 (date, region) 组合不存在于现有数据的记录
-    new_records_to_add = []
-    for _, row in new_df.iterrows():
-        if (row['date'], row['region']) not in existing_keys:
-            new_records_to_add.append(row)
+    if not records_to_add:
+        notify("No new records to add")
+        return existing_df
     
-    if new_records_to_add:
-        # 将新记录追加到现有数据中
-        new_df_to_add = pd.DataFrame(new_records_to_add)
-        combined_df = pd.concat([existing_df, new_df_to_add], ignore_index=True)
-        combined_df = combined_df.sort_values(['date', 'region'], ascending=[False, True]).reset_index(drop=True)
-        notify(f"✅ 成功追加 {len(new_records_to_add)} 条新记录")
-    else:
-        combined_df = existing_df
-        notify("ℹ️ 没有发现需要追加的新记录")
+    # 追加新记录
+    new_df_to_add = pd.DataFrame(records_to_add)
+    combined_df = pd.concat([existing_df, new_df_to_add], ignore_index=True)
+    combined_df = combined_df.sort_values('date', ascending=False).reset_index(drop=True)
     
-    # 4. 保存
+    # 保存
     try:
         combined_df.to_csv(database, index=False, encoding='utf-8')
-        notify(f"📊 数据库总记录数: {len(combined_df)}")
-    except IOError as e:
-        notify(f"❌ 保存数据库失败: {str(e)}")
+        notify(f"✅ Added {len(records_to_add)} new records, total: {len(combined_df)}")
+    except Exception as e:
+        notify(f"Failed to save: {str(e)}")
     
     return combined_df
 
 def download_images_task(src_df, img_dir, cache_dir, img_prefix, use_wget):
-    downloaded_imgs = os.listdir(img_dir)
+    downloaded_imgs = os.listdir(img_dir) if os.path.exists(img_dir) else []
     for date_str, url in zip(src_df['date'], src_df['url']):
         try:
             target_file = f'{img_prefix}-{date_str[2:]}.jpg'
@@ -191,7 +173,7 @@ def download_images_task(src_df, img_dir, cache_dir, img_prefix, use_wget):
             file_op.move_files(cache_file, os.path.join(img_dir, target_file))
             notify(f'{target_file} downloaded')
         except Exception as e:
-            notify(f"Download failed for {target_file}: {str(e)}")
+            notify(f"Download failed: {str(e)}")
 
 def generate_html_task(src_df, subpages_dir, column_number):
     try:
@@ -239,6 +221,7 @@ if __name__ == "__main__":
     
     try:
         src = load_database(database, args.no_history)
+        notify(f"Loaded {len(src)} existing records")
     except FileNotFoundError as e:
         print(f"Error: {str(e)}")
         exit(1)
@@ -246,8 +229,8 @@ if __name__ == "__main__":
     if not args.no_fetch:
         try:
             src = update_database(src)
-        except requests.HTTPError:
-            notify("Continuing with local database")
+        except Exception as e:
+            notify(f"Update failed: {str(e)}")
     
     if download_images:
         try:

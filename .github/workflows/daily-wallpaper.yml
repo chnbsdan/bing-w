@@ -1,47 +1,54 @@
 name: Daily Bing Wallpaper Fetcher
 
-# 触发条件设置
 on:
   # 定时触发：每天北京时间 8:00 运行 (UTC时间 0:00)
   schedule:
-    - cron: '0 0 * * *'  # [citation:5][citation:7][citation:9]
-  # 手动触发：方便你随时测试
+    - cron: '0 0 * * *'
+  # 手动触发：方便随时测试
   workflow_dispatch:
+  # 当 source_list.csv 被直接推送时也触发
+  push:
+    paths:
+      - 'source_list.csv'
 
-  # ===== 关键：在这里授予写入权限 =====
 permissions:
-  contents: write  # 授予对仓库内容的写入权限
+  contents: write
 
 jobs:
   fetch-and-update:
-    runs-on: ubuntu-latest  # 使用免费的Ubuntu环境[citation:3][citation:5][citation:7]
+    runs-on: ubuntu-latest
     
     steps:
-      # 1. 拉取你的仓库代码
+      # ===== 1. 拉取代码 =====
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. 设置 Python 环境
+      # ===== 2. 设置 Python 环境 =====
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'  # 使用合适的Python版本[citation:3][citation:5]
+          python-version: '3.10'
 
-      # 3. 安装项目依赖
+      # ===== 3. 安装依赖 =====
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install requests pandas  # 根据项目需要安装[citation:3][citation:5]
+          pip install requests pandas
 
-      # 4. 运行主程序 (不生成HTML，仅下载图片)
-      - name: Run fetcher
-        run: python main.py --no-html
+      # ===== 4. 获取最新壁纸数据（调用 main.py） =====
+      - name: Fetch latest wallpapers
+        run: python main.py --no-html --no-history
+        continue-on-error: true  # 即使失败也继续（可能API暂时不可用）
 
-      # 5. 将更新后的文件（图片和CSV）提交并推送到仓库
+      # ===== 5. 生成 JSON 数据（供前端和API使用） =====
+      - name: Generate JSON data
+        run: python generate_data.py
+
+      # ===== 6. 提交并推送所有更新 =====
       - name: Commit and push changes
         run: |
           git config --local user.name "github-actions[bot]"
           git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .
+          git add source_list.csv data/wallpapers.json
           git diff --staged --quiet || git commit -m "Daily wallpaper update [skip ci]"
           git push

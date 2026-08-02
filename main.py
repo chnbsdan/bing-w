@@ -1,4 +1,4 @@
-# main.py - 修改后的完整版本
+# main.py - 完整修改版（支持多地区抓取 + 按图片ID去重）
 
 import os
 import time
@@ -17,7 +17,7 @@ url_base = "https://cn.bing.com"
 img_prefix = "BW"
 MSG_LEN = 50
 
-# ★★★ 新增：定义要抓取的所有地区列表 ★★★
+# ★★★ 定义要抓取的所有地区列表 ★★★
 REGIONS = ['zh-CN', 'en-US', 'ja-JP', 'fr-FR', 'de-DE']
 
 def get_current_time():
@@ -68,7 +68,6 @@ def load_database(database_path: str, no_history: bool) -> pd.DataFrame:
     if os.path.exists(database_path) and not no_history:
         try:
             df = pd.read_csv(database_path, encoding='utf-8')
-            # 如果缺少 region 列，自动添加并填充 'zh-CN'
             if 'region' not in df.columns:
                 df['region'] = 'zh-CN'
                 notify("Added 'region' column with default value 'zh-CN'")
@@ -88,7 +87,6 @@ def load_database(database_path: str, no_history: bool) -> pd.DataFrame:
 def fetch_region(region: str) -> list:
     """获取指定地区的壁纸数据"""
     try:
-        # 使用 mkt 参数指定地区
         api_url = f"https://cn.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1&mkt={region}&nc=1614319565639&pid=hp&FORM=BEHPTB&uhd=1"
         response = requests.get(api_url, timeout=10)
         response.raise_for_status()
@@ -105,11 +103,16 @@ def fetch_region(region: str) -> list:
         notify(f"Failed to fetch region {region}: {str(e)}")
         return []
 
+def extract_image_id(url: str) -> str:
+    """从URL中提取图片ID（如 OHR.HelsinkiBlue）"""
+    import re
+    match = re.search(r'OHR\.([^_]+)', url)
+    return match.group(1) if match else url
+
 def update_database(existing_df: pd.DataFrame) -> pd.DataFrame:
-    """更新数据库 - 多地区版本"""
+    """更新数据库 - 按图片ID去重，保留第一个地区"""
     all_new_records = []
     
-    # ★★★ 循环抓取所有地区 ★★★
     for region in REGIONS:
         notify(f'Requesting Bing API for region: {region}...')
         records = fetch_region(region)
@@ -123,14 +126,30 @@ def update_database(existing_df: pd.DataFrame) -> pd.DataFrame:
     
     new_df = pd.DataFrame(all_new_records).astype({'date': str, 'region': str})
     
-    # ★★★ 合并并去重：按 (date, region) 组合去重 ★★★
-    combined_df = pd.concat([existing_df, new_df], ignore_index=True)
+    # ★★★ 提取图片ID（用于去重） ★★★
+    new_df['image_id'] = new_df['url'].apply(extract_image_id)
+    
+    # 如果现有数据没有 image_id，也需要提取
+    if 'image_id' not in existing_df.columns:
+        # 为现有数据添加 image_id（只在第一次运行时执行）
+        existing_df_copy = existing_df.copy()
+        existing_df_copy['image_id'] = existing_df_copy['url'].apply(extract_image_id)
+    else:
+        existing_df_copy = existing_df.copy()
+    
+    # ★★★ 合并新旧数据 ★★★
+    combined_df = pd.concat([existing_df_copy, new_df], ignore_index=True)
+    
+    # ★★★ 按日期 + image_id 去重，保留第一条（即第一个抓取到的地区） ★★★
     combined_df = (
         combined_df
-        .drop_duplicates(subset=['date', 'region'], keep='first')
+        .drop_duplicates(subset=['date', 'image_id'], keep='first')
         .sort_values(['date', 'region'], ascending=[False, True])
         .reset_index(drop=True)
     )
+    
+    # 删除辅助列 image_id
+    combined_df = combined_df.drop(columns=['image_id'])
     
     try:
         combined_df.to_csv(database, index=False, encoding='utf-8')

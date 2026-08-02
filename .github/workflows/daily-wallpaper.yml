@@ -2,21 +2,20 @@ name: Daily Bing Wallpaper Fetcher
 
 on:
   schedule:
-    - cron: '0 19 * * *'
-    - cron: '0 6 * * *'
+    - cron: '0 19 * * *'   # UTC 19:00 = 北京时间 03:00
+    - cron: '0 6 * * *'    # UTC 06:00 = 北京时间 14:00
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  fetch-and-update:
+  fetch-and-merge:
     runs-on: ubuntu-latest
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        # ★★★ 关键修复：获取完整历史，不只是最新提交 ★★★
         with:
           fetch-depth: 0
 
@@ -28,19 +27,20 @@ jobs:
       - name: Install dependencies
         run: pip install requests pandas
 
-      # ★★★ 新增：检查当前 source_list.csv 的内容 ★★★
-      - name: Check current data
-        run: |
-          echo "📊 Current source_list.csv has $(wc -l < source_list.csv) lines"
-          head -5 source_list.csv
-
+      # 步骤1：抓取原始数据（不合并）
       - name: Fetch latest wallpapers
-        run: python main.py --no-html --no-history
+        run: python main.py --no-html --no-history --save-raw new_data.csv
 
-      - name: Generate JSON data
+      # 步骤2：独立合并 + 去重
+      - name: Merge and deduplicate
+        run: python merge_data.py
+
+      # 步骤3：生成JSON
+      - name: Generate JSON
         run: python generate_data.py
 
-      - name: Commit and push changes
+      # 步骤4：提交
+      - name: Commit and push
         run: |
           git config --local user.name "github-actions[bot]"
           git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"

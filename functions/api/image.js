@@ -28,7 +28,13 @@ export async function onRequest(context) {
     const host = url.origin;
     const jsonUrl = `${host}/data/wallpapers.json`;
 
-    const fetchResp = await fetch(new Request(jsonUrl, request));
+    // ★★★ 修改：使用独立请求头 ★★★
+    const fetchResp = await fetch(jsonUrl, {
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'CloudflarePages-Function'
+      }
+    });
     if (!fetchResp.ok) {
       return new Response(JSON.stringify({
         error: '无法加载壁纸数据'

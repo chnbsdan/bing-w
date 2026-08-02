@@ -1,10 +1,11 @@
-# main.py - 稳定版，绝不会覆盖历史数据
+# main.py - 完整修正版
 
 import os
 import time
 import argparse
 import requests
 import pandas as pd
+import re
 import FileOperations as file_op
 from HTMLGenerator import Generator
 
@@ -17,6 +18,7 @@ url_base = "https://cn.bing.com"
 img_prefix = "BW"
 MSG_LEN = 50
 
+# 定义地区列表
 REGIONS = ['zh-CN', 'en-US', 'ja-JP', 'fr-FR', 'de-DE']
 
 def get_current_time():
@@ -41,6 +43,8 @@ def create_parser():
     parser.add_argument('--no-history', action='store_true', help='Caution! Overwrite existing source list.')
     parser.add_argument('--column-number', type=int, default=3, help='Number of images per row in HTML')
     parser.add_argument('--use-wget', action='store_true', help='Use system wget to download data')
+    # ★★★ 新增：保存原始数据到文件 ★★★
+    parser.add_argument('--save-raw', type=str, help='Save raw data to a file without merging')
     return parser
 
 def validate_arguments(args):
@@ -79,6 +83,11 @@ def load_database(database_path: str, no_history: bool) -> pd.DataFrame:
         raise FileNotFoundError("No existing database found when --no-fetch is enabled")
     return pd.DataFrame(columns=required_columns)
 
+def extract_image_id(url: str) -> str:
+    """从URL中提取图片ID（如 OHR.HelsinkiBlue）"""
+    match = re.search(r'OHR\.([^_]+)', str(url))
+    return match.group(1) if match else url
+
 def fetch_region(region: str) -> list:
     try:
         api_url = f"https://cn.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1&mkt={region}&nc=1614319565639&pid=hp&FORM=BEHPTB&uhd=1"
@@ -98,9 +107,9 @@ def fetch_region(region: str) -> list:
         return []
 
 def update_database(existing_df: pd.DataFrame) -> pd.DataFrame:
-    """追加新数据到现有数据，绝不覆盖"""
+    """安全合并：保留所有历史，只追加新数据，按图片ID去重"""
     
-    # 如果现有数据为空，创建空的 DataFrame
+    # ★★★ 核心修复1：始终保留历史数据 ★★★
     if existing_df is None or len(existing_df) == 0:
         existing_df = pd.DataFrame(columns=['date', 'title', 'url', 'description', 'region'])
     
@@ -118,38 +127,29 @@ def update_database(existing_df: pd.DataFrame) -> pd.DataFrame:
             notify(f'Region {region} fetched successfully')
     
     if not all_new_records:
-        notify("No new records fetched from any region")
+        notify("No new records fetched")
         return existing_df
     
     new_df = pd.DataFrame(all_new_records)
     
-    # ★★★ 关键：只追加不存在的记录 ★★★
-    # 创建现有记录的键集合
-    existing_keys = set()
-    for idx, row in existing_df.iterrows():
-        key = f"{row['date']}_{row['region']}"
-        existing_keys.add(key)
+    # ★★★ 核心修复2：合并新旧数据 ★★★
+    combined_df = pd.concat([existing_df, new_df], ignore_index=True)
     
-    # 筛选出新记录
-    records_to_add = []
-    for idx, row in new_df.iterrows():
-        key = f"{row['date']}_{row['region']}"
-        if key not in existing_keys:
-            records_to_add.append(row)
+    # ★★★ 核心修复3：按图片ID去重 ★★★
+    combined_df['image_id'] = combined_df['url'].apply(extract_image_id)
     
-    if not records_to_add:
-        notify("No new records to add")
-        return existing_df
+    # 按 (date, image_id) 去重，保留第一条（即历史数据优先）
+    combined_df = combined_df.drop_duplicates(subset=['date', 'image_id'], keep='first')
     
-    # 追加新记录
-    new_df_to_add = pd.DataFrame(records_to_add)
-    combined_df = pd.concat([existing_df, new_df_to_add], ignore_index=True)
+    # 删除辅助列，排序
+    combined_df = combined_df.drop(columns=['image_id'])
     combined_df = combined_df.sort_values('date', ascending=False).reset_index(drop=True)
     
     # 保存
     try:
         combined_df.to_csv(database, index=False, encoding='utf-8')
-        notify(f"✅ Added {len(records_to_add)} new records, total: {len(combined_df)}")
+        new_count = len(combined_df) - len(existing_df)
+        notify(f"✅ 新增 {new_count} 条，总计 {len(combined_df)} 条")
     except Exception as e:
         notify(f"Failed to save: {str(e)}")
     
@@ -231,6 +231,12 @@ if __name__ == "__main__":
             src = update_database(src)
         except Exception as e:
             notify(f"Update failed: {str(e)}")
+    
+    # ★★★ 支持 --save-raw ★★★
+    if hasattr(args, 'save_raw') and args.save_raw:
+        src.to_csv(args.save_raw, index=False, encoding='utf-8')
+        notify(f"✅ Raw data saved to {args.save_raw}")
+        exit(0)
     
     if download_images:
         try:

@@ -4,21 +4,29 @@ export async function onRequest(context) {
   const url = new URL(request.url);
   const base = `${url.protocol}//${url.host}`;
 
-  // ★★★ 通过 fetch 获取壁纸数据 ★★★
+  // ★★★ 获取壁纸数据（使用独立请求头，与 daily.js 保持一致）★★★
   let totalCount = '--';
   let todayDate = '--';
   try {
     const dataUrl = `${base}/data/wallpapers.json`;
-    const res = await fetch(dataUrl);
+    const res = await fetch(dataUrl, {
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'CloudflarePages-Function'
+      }
+    });
     if (res.ok) {
       const data = await res.json();
       totalCount = data.length || 0;
       if (data.length > 0) {
+        data.sort((a, b) => b.date.localeCompare(a.date));
         todayDate = data[0].date || '--';
       }
+    } else {
+      console.error(`Failed to fetch ${dataUrl}, status: ${res.status}`);
     }
   } catch (e) {
-    // 保持默认值 '--'
+    console.error('Fetch error:', e.message);
   }
 
   const html = `
@@ -34,7 +42,6 @@ export async function onRequest(context) {
     * { margin: 0; padding: 0; box-sizing: border-box; }
     
     :root {
-      /* 暗色模式（默认） */
       --bg-primary: #0f0f1a;
       --bg-secondary: #1a1a2e;
       --bg-card: rgba(255,255,255,0.04);
@@ -86,7 +93,6 @@ export async function onRequest(context) {
 
     .container { max-width: 1000px; margin: 0 auto; }
 
-    /* ===== 主题切换按钮 ===== */
     .theme-toggle-wrap {
       display: flex;
       justify-content: flex-end;
@@ -113,7 +119,6 @@ export async function onRequest(context) {
       border-color: var(--border-hover);
     }
 
-    /* ===== 头部 ===== */
     .header {
       display: flex;
       justify-content: space-between;
@@ -182,7 +187,6 @@ export async function onRequest(context) {
       border-color: var(--border-hover);
     }
 
-    /* ===== 统计卡片 ===== */
     .stats {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -219,7 +223,6 @@ export async function onRequest(context) {
       text-transform: uppercase;
     }
 
-    /* ===== 区块标题 ===== */
     .section-title {
       font-size: 18px;
       font-weight: 600;
@@ -238,7 +241,6 @@ export async function onRequest(context) {
       border-radius: 12px;
     }
 
-    /* ===== API 卡片 ===== */
     .api-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -349,7 +351,6 @@ export async function onRequest(context) {
       color: var(--text-secondary);
     }
 
-    /* ===== 参数表格 ===== */
     .params-table-wrap {
       background: var(--bg-card);
       border: 1px solid var(--border-color);
@@ -390,7 +391,6 @@ export async function onRequest(context) {
     }
     .params-table tr:last-child td { border-bottom: none; }
 
-    /* ===== 使用示例 ===== */
     .example-box {
       background: var(--bg-code);
       border: 1px solid var(--border-color);
@@ -410,7 +410,6 @@ export async function onRequest(context) {
       content: '// ';
     }
 
-    /* ===== 打赏 ===== */
     .donate-section {
       margin-top: 40px;
       padding: 28px 32px;
@@ -468,7 +467,6 @@ export async function onRequest(context) {
     .donate-section .qr-item .qr-label.wechat { color: #07c160; }
     .donate-section .qr-item .qr-label.alipay { color: #1677ff; }
 
-    /* ===== 页脚 ===== */
     footer {
       margin-top: 32px;
       padding-top: 20px;
@@ -489,7 +487,6 @@ export async function onRequest(context) {
     }
     footer .footer-links a:hover { color: var(--text-primary); }
 
-    /* ===== Toast ===== */
     .toast {
       position: fixed;
       bottom: 30px;
@@ -513,7 +510,6 @@ export async function onRequest(context) {
       transform: translateX(-50%) translateY(0);
     }
 
-    /* ===== 响应式 ===== */
     @media (max-width: 640px) {
       body { padding: 16px 14px 40px; }
       .header-left h1 { font-size: 22px; }
@@ -539,14 +535,12 @@ export async function onRequest(context) {
 
   <div class="container">
 
-    <!-- ===== 主题切换 ===== -->
     <div class="theme-toggle-wrap">
       <button class="theme-toggle-btn" id="themeToggle" title="切换主题">
         <i class="fas fa-moon" id="themeIcon"></i> <span id="themeLabel">深色</span>
       </button>
     </div>
 
-    <!-- ===== 头部 ===== -->
     <div class="header">
       <div class="header-left">
         <h1>
@@ -560,7 +554,6 @@ export async function onRequest(context) {
       </div>
     </div>
 
-    <!-- ===== 统计 ===== -->
     <div class="stats">
       <div class="stat-card">
         <div class="num"><i class="fas fa-image"></i> ${totalCount}</div>
@@ -576,7 +569,6 @@ export async function onRequest(context) {
       </div>
     </div>
 
-    <!-- ===== API 列表 ===== -->
     <div class="section-title">
       <i class="fas fa-plug"></i> API 接口
       <span class="tag">全部免费</span>
@@ -638,7 +630,6 @@ export async function onRequest(context) {
 
     </div>
 
-    <!-- ===== 参数说明 ===== -->
     <div class="section-title" style="margin-top:36px;">
       <i class="fas fa-cog"></i> 参数说明
       <span class="tag">可选</span>
@@ -674,7 +665,6 @@ export async function onRequest(context) {
       </table>
     </div>
 
-    <!-- ===== 使用示例 ===== -->
     <div class="section-title" style="margin-top:36px;">
       <i class="fas fa-code"></i> 使用示例
       <span class="tag">HTML</span>
@@ -693,7 +683,6 @@ export async function onRequest(context) {
         .then(data => console.log(data));
     </div>
 
-    <!-- ===== 打赏 ===== -->
     <div class="donate-section">
       <div class="donate-title"><i class="fas fa-heart"></i> 支持作者</div>
       <div class="donate-desc">如果这个 API 对你有帮助，请作者喝杯咖啡吧 ☕</div>
@@ -709,7 +698,6 @@ export async function onRequest(context) {
       </div>
     </div>
 
-    <!-- ===== 页脚 ===== -->
     <footer>
       <span>© 2026 必应壁纸 · 图片来自 Bing</span>
       <div class="footer-links">
@@ -721,7 +709,6 @@ export async function onRequest(context) {
 
   </div>
 
-  <!-- ===== Toast ===== -->
   <div class="toast" id="toast">✅ 已复制</div>
 
   <script>
@@ -752,26 +739,7 @@ export async function onRequest(context) {
     setTheme(currentTheme);
 
     // ============================================================
-    // 2. 加载统计数据
-    // ============================================================
-    async function loadStats() {
-      try {
-        var res = await fetch('/data/wallpapers.json');
-        if (!res.ok) throw new Error('加载失败');
-        var data = await res.json();
-        var countEl = document.getElementById('totalCount');
-        var dateEl = document.getElementById('todayDate');
-        if (countEl) countEl.textContent = data.length || '0';
-        if (dateEl && data.length > 0) {
-          dateEl.textContent = data[0].date || '--';
-        }
-      } catch (err) {
-        console.log('统计加载失败:', err);
-      }
-    }
-
-    // ============================================================
-    // 3. 更新时间
+    // 2. 更新时间
     // ============================================================
     var now = new Date();
     var h = String(now.getHours()).padStart(2, '0');
@@ -780,7 +748,7 @@ export async function onRequest(context) {
     if (updateEl) updateEl.textContent = h + ':' + m;
 
     // ============================================================
-    // 4. 复制功能
+    // 3. 复制功能
     // ============================================================
     function copyText(text) {
       if (navigator.clipboard) {
@@ -819,30 +787,24 @@ export async function onRequest(context) {
     }
 
     // ============================================================
-    // 5. 反馈按钮 → 打开留言弹窗
+    // 4. 反馈按钮
     // ============================================================
     var feedbackLink = document.getElementById('feedbackLink');
     if (feedbackLink) {
       feedbackLink.addEventListener('click', function(e) {
         e.preventDefault();
-        
         if (window.parent && typeof window.parent.openComment === 'function') {
           window.parent.openComment();
           return;
         }
-        
         if (window.parent && window.parent !== window) {
           window.parent.postMessage({ type: 'openComment' }, '*');
           return;
         }
-        
         window.location.href = '/?action=comment';
       });
     }
 
-    // ============================================================
-    // 6. 监听来自父页面的消息
-    // ============================================================
     window.addEventListener('message', function(event) {
       if (event.data && event.data.type === 'openComment') {
         if (typeof window.parent.openComment === 'function') {
@@ -851,9 +813,6 @@ export async function onRequest(context) {
       }
     });
 
-    // ============================================================
-    // 7. 检查 URL 参数
-    // ============================================================
     if (window.location.search.indexOf('action=comment') !== -1) {
       if (window.parent && window.parent !== window) {
         window.parent.postMessage({ type: 'openComment' }, '*');
@@ -861,11 +820,6 @@ export async function onRequest(context) {
         window.location.href = '/';
       }
     }
-
-    // ============================================================
-    // 8. 启动
-    // ============================================================
-    loadStats();
   </script>
 
 </body>

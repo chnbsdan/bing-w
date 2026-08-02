@@ -18,9 +18,18 @@ export async function onRequest(context) {
     const host = url.origin;
     const jsonUrl = `${host}/data/wallpapers.json`;
 
-    const fetchResp = await fetch(new Request(jsonUrl, request));
+    // ★★★ 修改：创建一个不带特殊头部的全新请求 ★★★
+    const fetchResp = await fetch(jsonUrl, {
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'CloudflarePages-Function'
+      }
+    });
+
     if (!fetchResp.ok) {
-      return new Response("Failed to load wallpapers.json", { status: 502 });
+      // 增加错误日志输出，方便调试
+      console.error(`Failed to fetch ${jsonUrl}, status: ${fetchResp.status}`);
+      return new Response(`Failed to load wallpapers.json (status: ${fetchResp.status})`, { status: 502 });
     }
 
     let wallpapers = await fetchResp.json();

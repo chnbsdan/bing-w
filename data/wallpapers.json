@@ -8,11 +8,48 @@
     "thumb": "https://cn.bing.com/th?id=OHR.HelsinkiBlue_EN-US4898215906_400x240.jpg"
   },
   {
+    "date": "2026-08-03",
+    "copyright": "Daughter of the Baltic",
+    "description": "Helsinki's shoreline during blue hour, Uusimaa, Finland (© Miemo Penttinen/Getty Images)",
+    "jpg": "https://cn.bing.com/th?id=OHR.HelsinkiBlue_EN-US4898215906_UHD.jpg",
+    "webp": "https://cn.bing.com/th?id=OHR.HelsinkiBlue_EN-US4898215906_UHD.jpg",
+    "thumb": "https://cn.bing.com/th?id=OHR.HelsinkiBlue_EN-US4898215906_400x240.jpg",
+    "region": "en-US"
+  },
+  {
     "date": "2026-08-02",
     "copyright": "色彩鲜艳的船只，历久弥新的传统",
     "description": "马尔萨什洛克港口五彩斑斓的渔船，马耳他 (© Klubovy/Getty Images)",
     "jpg": "https://cn.bing.com/th?id=OHR.HelsinkiBlue_ZH-CN3961551568_UHD.jpg",
     "webp": "https://cn.bing.com/th?id=OHR.HelsinkiBlue_ZH-CN3961551568_UHD.jpg",
-    "thumb": "https://cn.bing.com/th?id=OHR.HelsinkiBlue_ZH-CN3961551568_400x240.jpg"
+    "thumb": "https://cn.bing.com/th?id=OHR.HelsinkiBlue_ZH-CN3961551568_400x240.jpg",
+    "region": "zh-CN"
+  },
+  {
+    "date": "2026-08-02",
+    "copyright": "Tochter der Ostsee",
+    "description": "Helsinkis Küste zur blauen Stunde, Uusimaa, Finnland (© Miemo Penttinen/Getty Images)",
+    "jpg": "https://cn.bing.com/th?id=OHR.HelsinkiBlue_DE-DE4461850043_UHD.jpg",
+    "webp": "https://cn.bing.com/th?id=OHR.HelsinkiBlue_DE-DE4461850043_UHD.jpg",
+    "thumb": "https://cn.bing.com/th?id=OHR.HelsinkiBlue_DE-DE4461850043_400x240.jpg",
+    "region": "de-DE"
+  },
+  {
+    "date": "2026-08-02",
+    "copyright": "Fille de la Baltique",
+    "description": "Le littoral d'Helsinki pendant l'heure bleue, Uusimaa, Finlande (© Miemo Penttinen/Getty Images)",
+    "jpg": "https://cn.bing.com/th?id=OHR.HelsinkiBlue_FR-FR8717266334_UHD.jpg",
+    "webp": "https://cn.bing.com/th?id=OHR.HelsinkiBlue_FR-FR8717266334_UHD.jpg",
+    "thumb": "https://cn.bing.com/th?id=OHR.HelsinkiBlue_FR-FR8717266334_400x240.jpg",
+    "region": "fr-FR"
+  },
+  {
+    "date": "2026-08-02",
+    "copyright": "ブルーアワーに輝く湾岸の街",
+    "description": "ヘルシンキ, フィンランド (© Miemo Penttinen/Getty Images)",
+    "jpg": "https://cn.bing.com/th?id=OHR.HelsinkiBlue_JA-JP6468131752_UHD.jpg",
+    "webp": "https://cn.bing.com/th?id=OHR.HelsinkiBlue_JA-JP6468131752_UHD.jpg",
+    "thumb": "https://cn.bing.com/th?id=OHR.HelsinkiBlue_JA-JP6468131752_400x240.jpg",
+    "region": "ja-JP"
   }
 ]

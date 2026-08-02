@@ -1,9 +1,11 @@
-# fetch_only.py
+# fetch_only.py - 修正版
+
 import os
 import time
 import requests
 import pandas as pd
 import re
+from datetime import datetime, timezone, timedelta
 
 REGIONS = ['zh-CN', 'en-US', 'ja-JP', 'fr-FR', 'de-DE']
 url_base = "https://cn.bing.com"
@@ -14,6 +16,15 @@ def fetch_region(region: str) -> list:
         response = requests.get(api_url, timeout=10)
         response.raise_for_status()
         image_data = response.json()['images'][0]
+        
+        # ★★★ 只保留当天的数据 ★★★
+        beijing_tz = timezone(timedelta(hours=8))
+        today = datetime.now(beijing_tz).strftime('%Y%m%d')
+        
+        if image_data['enddate'] != today:
+            print(f"⚠️ {region}: 日期 {image_data['enddate']} 不是今天 ({today})，跳过")
+            return []
+        
         return [{
             'date': image_data['enddate'],
             'title': image_data['title'],

@@ -29,34 +29,53 @@ export async function onRequest(context) {
   try {
     const host = url.origin;
     
-    // ★★★ 读取分页文件 ★★★
-    const pageFile = `${host}/data/pages/page-${page}.json`;
-    const fetchResp = await fetch(new Request(pageFile, request));
+    // ★★★ 修改：从完整数据中分页，而不是读取分页文件 ★★★
+    const jsonUrl = `${host}/data/wallpapers.json`;
+    const fetchResp = await fetch(jsonUrl, {
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'CloudflarePages-Function'
+      }
+    });
 
     if (!fetchResp.ok) {
-      // 如果分页文件不存在，返回 404
       return new Response(JSON.stringify({
-        error: `第 ${page} 页不存在`,
-        totalPages: 48,  // 你的分页总数
-        hint: `可用页码: 1-48`
+        error: '无法加载壁纸数据'
+      }), {
+        status: 502,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    const allData = await fetchResp.json();
+
+    if (!Array.isArray(allData) || allData.length === 0) {
+      return new Response(JSON.stringify({
+        error: '暂无壁纸数据'
       }), {
         status: 404,
         headers: { 'Content-Type': 'application/json' }
       });
     }
 
-    const pageData = await fetchResp.json();
+    // ★★★ 分页计算（按日期降序） ★★★
+    const sortedData = [...allData].sort((a, b) => b.date.localeCompare(a.date));
+    const total = sortedData.length;
+    const totalPages = Math.ceil(total / pageSize);
+    const start = (page - 1) * pageSize;
+    const end = Math.min(start + pageSize, total);
+    const items = sortedData.slice(start, end);
 
     // ★★★ 返回分页数据 ★★★
     return new Response(JSON.stringify({
       code: 0,
       data: {
-        items: pageData.items || [],
-        page: pageData.page || page,
-        pageSize: pageData.pageSize || pageSize,
-        total: pageData.total || 0,
-        totalPages: pageData.totalPages || 48,
-        hasMore: pageData.hasMore || (page < (pageData.totalPages || 48))
+        items: items,
+        page: page,
+        pageSize: pageSize,
+        total: total,
+        totalPages: totalPages,
+        hasMore: page < totalPages
       }
     }), {
       headers: {

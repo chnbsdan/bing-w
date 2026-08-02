@@ -2,15 +2,15 @@ name: Daily Bing Wallpaper Fetcher
 
 on:
   schedule:
-    - cron: '0 19 * * *'   # UTC 19:00 = 北京时间 03:00
-    - cron: '0 6 * * *'    # UTC 06:00 = 北京时间 14:00
+    - cron: '0 19 * * *'
+    - cron: '0 6 * * *'
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  fetch-and-merge:
+  safe-fetch-and-merge:
     runs-on: ubuntu-latest
     
     steps:
@@ -27,13 +27,13 @@ jobs:
       - name: Install dependencies
         run: pip install requests pandas
 
-      # 步骤1：抓取原始数据（不合并）
-      - name: Fetch latest wallpapers
-        run: python main.py --no-html --no-history --save-raw new_data.csv
+      # ★★★ 步骤1：只抓取，不合并 ★★★
+      - name: Fetch only
+        run: python fetch_only.py
 
-      # 步骤2：独立合并 + 去重
-      - name: Merge and deduplicate
-        run: python merge_data.py
+      # ★★★ 步骤2：安全合并 ★★★
+      - name: Safe merge
+        run: python safe_merge.py
 
       # 步骤3：生成JSON
       - name: Generate JSON

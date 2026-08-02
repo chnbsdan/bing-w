@@ -10,7 +10,7 @@ from HTMLGenerator import Generator
 
 database = "./source_list.csv"
 img_dir = "./wallpaper/images"
-subpages_dir =./wallpaper/subpages"
+subpages_dir = "./wallpaper/subpages"
 cache_dir = "./cache"
 backup_dir = "./backup"
 url_base = "https://cn.bing.com"

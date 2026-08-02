@@ -784,6 +784,27 @@ html, body {
         <div class="navbar-header"><div class="logo"><img src="/favicon.ico" alt="Logo" style="width:24px;height:24px;border-radius:4px;" /> Bing <span>Wallpaper</span></div></div>
         <div class="badge"><i class="fas fa-images"></i> <span id="totalNavCount">0</span> 张</div>
         <div class="search-box"><input type="text" id="searchInput" placeholder="搜索年份/关键词..." /><button class="search-btn" id="searchBtn"><i class="fas fa-search"></i></button></div>
+        <!-- 在 <div class="nav-actions"> 之前添加 -->
+<div class="region-selector" style="display: flex; gap: 6px; align-items: center; margin-bottom: 6px; padding: 0 4px;">
+    <label for="regionSelect" style="color: var(--text-secondary); font-size: 12px; white-space: nowrap;">🌍 地区</label>
+    <select id="regionSelect" style="
+        background: var(--input-bg);
+        border: 1px solid var(--input-border);
+        border-radius: 6px;
+        color: var(--text-primary);
+        padding: 4px 8px;
+        font-size: 12px;
+        outline: none;
+        cursor: pointer;
+        flex: 1;
+    ">
+        <option value="zh-CN">🇨🇳 中国</option>
+        <option value="en-US">🇺🇸 美国</option>
+        <option value="ja-JP">🇯🇵 日本</option>
+        <option value="fr-FR">🇫🇷 法国</option>
+        <option value="de-DE">🇩🇪 德国</option>
+    </select>
+</div>
         <div class="nav-actions">
             <button id="homeBtn"><i class="fas fa-home"></i> 首页</button>
             <button id="commentNavBtn"><i class="fas fa-comment"></i> 留言 <span class="badge-dot"></span></button>
@@ -1019,6 +1040,8 @@ html, body {
         // 6. 数据加载 - ★★★ 无限滚动（修复叠加）★★★
         // ============================================================
         var allData = [];
+        // 在脚本顶部，与 allData 等变量一起声明
+        var currentRegion = 'zh-CN'; // ★★★ 默认地区 ★★★
         var filteredData = [];
         var currentPage = 1;
         var PAGE_SIZE = 30;
@@ -1065,33 +1088,68 @@ html, body {
         // ============================================================
         // 6.1 加载数据
         // ============================================================
-        async function loadData() {
-            showProgress();
-            try {
-                var url = BASE_PATH + '/data/wallpapers.json';
-                var res = await fetch(url);
-                if (!res.ok) throw new Error('HTTP ' + res.status);
-                allData = await res.json();
-                if (!Array.isArray(allData) || allData.length === 0) {
-                    showEmpty();
-                    hideProgress();
-                    return;
-                }
-                allData.sort(function(a, b) { return b.date.localeCompare(a.date); });
-                filteredData = [];
-                totalNavCount.textContent = allData.length;
-                totalPages = Math.ceil(allData.length / PAGE_SIZE);
-                currentPage = 1;
-                hasMore = true;
-                grid.innerHTML = '';
-                renderPage(1);
-                hideProgress();
-            } catch (err) {
-                console.error('加载失败:', err);
-                showEmpty();
-                hideProgress();
-            }
+       // 替换原有的 loadData 函数
+async function loadData() {
+    showProgress();
+    try {
+        // ★★★ 从 API 获取数据，支持地区筛选 ★★★
+        var url = BASE_PATH + `/api/list?page=1&size=200&region=${currentRegion}`;
+        var res = await fetch(url);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        var result = await res.json();
+        
+        // 解析 API 返回的数据结构
+        if (result.code === 0 && result.data && result.data.items) {
+            allData = result.data.items;
+        } else {
+            throw new Error('Invalid data format');
         }
+        
+        if (!Array.isArray(allData) || allData.length === 0) {
+            showEmpty();
+            hideProgress();
+            return;
+        }
+        filteredData = [];
+        totalNavCount.textContent = allData.length;
+        totalPages = Math.ceil(allData.length / PAGE_SIZE);
+        currentPage = 1;
+        hasMore = true;
+        grid.innerHTML = '';
+        renderPage(1);
+        hideProgress();
+    } catch (err) {
+        console.error('加载失败:', err);
+        showEmpty();
+        hideProgress();
+    }
+}
+
+// ★★★ 新增：地区切换函数 ★★★
+function changeRegion(region) {
+    currentRegion = region;
+    // 重置数据
+    allData = [];
+    filteredData = [];
+    currentPage = 1;
+    hasMore = true;
+    grid.innerHTML = '';
+    // 重新加载
+    loadData();
+    // 关闭导航栏
+    toggleNav(false);
+}
+
+// ★★★ 绑定地区选择器事件 ★★★
+// 在 DOMContentLoaded 事件中添加，或者放在脚本底部
+document.addEventListener('DOMContentLoaded', function() {
+    var regionSelect = document.getElementById('regionSelect');
+    if (regionSelect) {
+        regionSelect.addEventListener('change', function(e) {
+            changeRegion(this.value);
+        });
+    }
+});
 
         // ============================================================
         // 6.2 渲染页面 - ★★★ 追加模式 ★★★

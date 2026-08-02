@@ -1,4 +1,4 @@
-# main.py - 完整修改版（支持多地区抓取 + 按图片ID去重）
+# main.py - 完整修正版（支持多地区抓取 + 按 (date, region) 追加数据）
 
 import os
 import time
@@ -68,6 +68,7 @@ def load_database(database_path: str, no_history: bool) -> pd.DataFrame:
     if os.path.exists(database_path) and not no_history:
         try:
             df = pd.read_csv(database_path, encoding='utf-8')
+            # 如果缺少 region 列，自动添加并填充 'zh-CN'
             if 'region' not in df.columns:
                 df['region'] = 'zh-CN'
                 notify("Added 'region' column with default value 'zh-CN'")
@@ -103,16 +104,11 @@ def fetch_region(region: str) -> list:
         notify(f"Failed to fetch region {region}: {str(e)}")
         return []
 
-def extract_image_id(url: str) -> str:
-    """从URL中提取图片ID（如 OHR.HelsinkiBlue）"""
-    import re
-    match = re.search(r'OHR\.([^_]+)', url)
-    return match.group(1) if match else url
-
 def update_database(existing_df: pd.DataFrame) -> pd.DataFrame:
-    """更新数据库 - 按图片ID去重，保留第一个地区"""
+    """更新数据库 - 按 (date, region) 追加新数据，保留历史"""
     all_new_records = []
     
+    # 1. 抓取所有地区的新数据
     for region in REGIONS:
         notify(f'Requesting Bing API for region: {region}...')
         records = fetch_region(region)
@@ -126,31 +122,21 @@ def update_database(existing_df: pd.DataFrame) -> pd.DataFrame:
     
     new_df = pd.DataFrame(all_new_records).astype({'date': str, 'region': str})
     
-    # ★★★ 提取图片ID（用于去重） ★★★
-    new_df['image_id'] = new_df['url'].apply(extract_image_id)
+    # ★★★ 确保 existing_df 有 region 列（兼容旧数据）★★★
+    if 'region' not in existing_df.columns:
+        existing_df['region'] = 'zh-CN'
+        notify("Existing data missing 'region' column, set to 'zh-CN'")
     
-    # 如果现有数据没有 image_id，也需要提取
-    if 'image_id' not in existing_df.columns:
-        # 为现有数据添加 image_id（只在第一次运行时执行）
-        existing_df_copy = existing_df.copy()
-        existing_df_copy['image_id'] = existing_df_copy['url'].apply(extract_image_id)
-    else:
-        existing_df_copy = existing_df.copy()
-    
-    # ★★★ 合并新旧数据 ★★★
-    combined_df = pd.concat([existing_df_copy, new_df], ignore_index=True)
-    
-    # ★★★ 按日期 + image_id 去重，保留第一条（即第一个抓取到的地区） ★★★
+    # ★★★ 合并：按 (date, region) 去重，保留旧数据（keep='first'）★★★
+    combined_df = pd.concat([existing_df, new_df], ignore_index=True)
     combined_df = (
         combined_df
-        .drop_duplicates(subset=['date', 'image_id'], keep='first')
+        .drop_duplicates(subset=['date', 'region'], keep='first')  # ← 保留旧数据
         .sort_values(['date', 'region'], ascending=[False, True])
         .reset_index(drop=True)
     )
     
-    # 删除辅助列 image_id
-    combined_df = combined_df.drop(columns=['image_id'])
-    
+    # 保存
     try:
         combined_df.to_csv(database, index=False, encoding='utf-8')
         new_count = len(combined_df) - len(existing_df)

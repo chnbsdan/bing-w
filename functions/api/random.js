@@ -6,9 +6,14 @@ export async function onRequest(context) {
   const host = url.origin;
 
   try {
-    // 从 wallpapers.json 读取全部数据
+    // ★★★ 修改：使用独立请求头 ★★★
     const jsonUrl = `${host}/data/wallpapers.json`;
-    const resp = await fetch(new Request(jsonUrl, request));
+    const resp = await fetch(jsonUrl, {
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'CloudflarePages-Function'
+      }
+    });
     if (!resp.ok) {
       return new Response('Failed to load wallpapers.json', { status: 502 });
     }

@@ -17,18 +17,11 @@ export async function onRequest(context) {
       });
     }
 
-    // ★★★ 方法一：使用相对路径 ★★★
-    const jsonUrl = '/data/wallpapers.json';
-    
-    // ★★★ 方法二：使用绝对路径（备选） ★★★
-    // const jsonUrl = `${url.protocol}//${url.host}/data/wallpapers.json`;
+    // ★★★ 使用绝对路径 ★★★
+    const baseUrl = `${url.protocol}//${url.host}`;
+    const jsonUrl = `${baseUrl}/data/wallpapers.json`;
 
-    const resp = await fetch(jsonUrl, {
-      headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'CloudflarePages-Function'
-      }
-    });
+    const resp = await fetch(jsonUrl);
 
     if (!resp.ok) {
       return new Response(JSON.stringify({

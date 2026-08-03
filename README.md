@@ -1,6 +1,6 @@
 # 🖼️ Bing Wallpaper Fetcher
 
-> 自动抓取必应4K+壁纸 · 支持网页展示 & RESTful API
+> 自动抓取必应4K+壁纸 · 支持网页展示 & RESTful API，此项目日期与各地区图片抓取与未来七天的壁纸未能实现。
 
 [![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-自动更新-2088FF?logo=github-actions&logoColor=white)](.github/workflows)
 [![Cloudflare Pages](https://img.shields.io/badge/Cloudflare%20Pages-部署成功-F38020?logo=cloudflare&logoColor=white)](https://bing-wallpaper-fetcher.pages.dev/)

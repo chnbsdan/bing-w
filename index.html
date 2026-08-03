@@ -784,27 +784,17 @@ html, body {
         <div class="navbar-header"><div class="logo"><img src="/favicon.ico" alt="Logo" style="width:24px;height:24px;border-radius:4px;" /> Bing <span>Wallpaper</span></div></div>
         <div class="badge"><i class="fas fa-images"></i> <span id="totalNavCount">0</span> 张</div>
         <div class="search-box"><input type="text" id="searchInput" placeholder="搜索年份/关键词..." /><button class="search-btn" id="searchBtn"><i class="fas fa-search"></i></button></div>
-        <!-- 在 <div class="nav-actions"> 之前添加 -->
-<div class="region-selector" style="display: flex; gap: 6px; align-items: center; margin-bottom: 6px; padding: 0 4px;">
-    <label for="regionSelect" style="color: var(--text-secondary); font-size: 12px; white-space: nowrap;">🌍 地区</label>
-    <select id="regionSelect" style="
-        background: var(--input-bg);
-        border: 1px solid var(--input-border);
-        border-radius: 6px;
-        color: var(--text-primary);
-        padding: 4px 8px;
-        font-size: 12px;
-        outline: none;
-        cursor: pointer;
-        flex: 1;
-    ">
-        <option value="zh-CN">🇨🇳 中国</option>
-        <option value="en-US">🇺🇸 美国</option>
-        <option value="ja-JP">🇯🇵 日本</option>
-        <option value="fr-FR">🇫🇷 法国</option>
-        <option value="de-DE">🇩🇪 德国</option>
-    </select>
-</div>
+        <div class="region-selector" style="display: flex; gap: 6px; align-items: center; margin-bottom: 6px; padding: 0 4px;">
+            <label for="regionSelect" style="color: var(--text-secondary); font-size: 12px; white-space: nowrap;">🌍 地区</label>
+            <select id="regionSelect" style="background: var(--input-bg); border: 1px solid var(--input-border); border-radius: 6px; color: var(--text-primary); padding: 4px 8px; font-size: 12px; outline: none; cursor: pointer; flex: 1;">
+                <option value="all">🌐 全部</option>
+                <option value="zh-CN">🇨🇳 中国</option>
+                <option value="en-US">🇺🇸 美国</option>
+                <option value="ja-JP">🇯🇵 日本</option>
+                <option value="fr-FR">🇫🇷 法国</option>
+                <option value="de-DE">🇩🇪 德国</option>
+            </select>
+        </div>
         <div class="nav-actions">
             <button id="homeBtn"><i class="fas fa-home"></i> 首页</button>
             <button id="commentNavBtn"><i class="fas fa-comment"></i> 留言 <span class="badge-dot"></span></button>
@@ -1037,11 +1027,10 @@ html, body {
         });
 
         // ============================================================
-        // 6. 数据加载 - ★★★ 无限滚动（修复叠加）★★★
+        // 6. 数据加载 - 按地区筛选
         // ============================================================
         var allData = [];
-        // 在脚本顶部，与 allData 等变量一起声明
-        var currentRegion = 'zh-CN'; // ★★★ 默认地区 ★★★
+        var currentRegion = 'all';
         var filteredData = [];
         var currentPage = 1;
         var PAGE_SIZE = 30;
@@ -1050,7 +1039,7 @@ html, body {
         var hasMore = true;
         var currentPreviewIndex = 0;
         var currentPreviewItem = null;
-        var scrollTimer = null;  // ★★★ 防抖定时器 ★★★
+        var scrollTimer = null;
 
         var grid = document.getElementById('grid');
         var previewOverlay = document.getElementById('previewOverlay');
@@ -1070,7 +1059,6 @@ html, body {
         var downloadMenu = document.getElementById('downloadMenu');
         var backToTop = document.getElementById('backToTop');
 
-        // 缩放状态
         var scale = 1,
             minScale = 0.3,
             maxScale = 5,
@@ -1081,93 +1069,88 @@ html, body {
             startY = 0,
             lastTranslateX = 0,
             lastTranslateY = 0;
-
-        // 工具栏显示状态
         var toolbarVisible = true;
 
         // ============================================================
         // 6.1 加载数据
         // ============================================================
-       // 替换原有的 loadData 函数
-async function loadData() {
-    showProgress();
-    try {
-        // 请求 API
-        var url = BASE_PATH + '/api/list?page=1&size=200';
-        console.log('📡 请求数据:', url);
-        
-        var res = await fetch(url);
-        console.log('📡 响应状态:', res.status);
-        
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        
-        var result = await res.json();
-        console.log('📦 返回数据:', result);
-        
-        // ★★★ 关键：检查数据解析路径 ★★★
-        if (result.code === 0 && result.data && result.data.items) {
-            allData = result.data.items;
-            console.log('✅ 加载成功，共 ' + allData.length + ' 张壁纸');
-        } else {
-            console.error('❌ 数据格式异常:', result);
-            throw new Error('Invalid data format');
-        }
-        
-        // 检查数据是否为空
-        if (!Array.isArray(allData) || allData.length === 0) {
-            showEmpty();
-            hideProgress();
-            return;
-        }
-        
-        // 重置状态并渲染
-        filteredData = [];
-        totalNavCount.textContent = allData.length;
-        totalPages = Math.ceil(allData.length / PAGE_SIZE);
-        currentPage = 1;
-        hasMore = true;
-        grid.innerHTML = '';
-        renderPage(1);
-        hideProgress();
-        
-    } catch (err) {
-        console.error('❌ 加载失败:', err);
-        showEmpty();
-        hideProgress();
-    }
-}
+        async function loadData() {
+            showProgress();
+            try {
+                var url = BASE_PATH + '/api/list?page=1&size=200';
+                console.log('📡 请求数据:', url);
 
-// ★★★ 新增：地区切换函数 ★★★
-function changeRegion(region) {
-    currentRegion = region;
-    // 重置数据
-    allData = [];
-    filteredData = [];
-    currentPage = 1;
-    hasMore = true;
-    grid.innerHTML = '';
-    // 重新加载
-    loadData();
-    // 关闭导航栏
-    toggleNav(false);
-}
+                var res = await fetch(url);
+                console.log('📡 响应状态:', res.status);
 
-// ★★★ 绑定地区选择器事件 ★★★
-// 在 DOMContentLoaded 事件中添加，或者放在脚本底部
-document.addEventListener('DOMContentLoaded', function() {
-    var regionSelect = document.getElementById('regionSelect');
-    if (regionSelect) {
-        regionSelect.addEventListener('change', function(e) {
-            changeRegion(this.value);
-        });
-    }
-});
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+
+                var result = await res.json();
+                console.log('📦 返回数据:', result);
+
+                if (result.code === 0 && result.data && result.data.items) {
+                    var rawData = result.data.items;
+                    var seen = {};
+                    var uniqueData = [];
+
+                    rawData.forEach(function(item) {
+                        var imageId = item.jpg ? item.jpg.replace(/^.*OHR\.([^_]+)_.*$/, '$1') : item.date;
+                        var key = item.date + '_' + imageId;
+                        if (!seen[key]) {
+                            seen[key] = true;
+                            uniqueData.push(item);
+                        }
+                    });
+
+                    allData = uniqueData;
+                    console.log('✅ 加载成功，共 ' + allData.length + ' 张壁纸（去重后）');
+                } else {
+                    console.error('❌ 数据格式异常:', result);
+                    throw new Error('Invalid data format');
+                }
+
+                if (!Array.isArray(allData) || allData.length === 0) {
+                    showEmpty();
+                    hideProgress();
+                    return;
+                }
+
+                applyFilterAndRender();
+
+            } catch (err) {
+                console.error('❌ 加载失败:', err);
+                showEmpty();
+                hideProgress();
+            }
+        }
 
         // ============================================================
-        // 6.2 渲染页面 - ★★★ 追加模式 ★★★
+        // 6.2 按地区筛选并渲染
+        // ============================================================
+        function applyFilterAndRender() {
+            var dataToRender = allData;
+
+            if (currentRegion !== 'all') {
+                dataToRender = allData.filter(function(item) {
+                    return item.region === currentRegion;
+                });
+            }
+
+            filteredData = dataToRender;
+            totalNavCount.textContent = filteredData.length;
+            totalPages = Math.ceil(filteredData.length / PAGE_SIZE);
+            currentPage = 1;
+            hasMore = true;
+            grid.innerHTML = '';
+            renderPage(1);
+            hideProgress();
+        }
+
+        // ============================================================
+        // 6.3 渲染页面
         // ============================================================
         function renderPage(page) {
-            var data = filteredData.length > 0 ? filteredData : allData;
+            var data = filteredData;
             totalPages = Math.ceil(data.length / PAGE_SIZE);
             if (page < 1) page = 1;
             if (page > totalPages) {
@@ -1179,14 +1162,13 @@ document.addEventListener('DOMContentLoaded', function() {
             var start = (page - 1) * PAGE_SIZE;
             var end = Math.min(start + PAGE_SIZE, data.length);
             var items = data.slice(start, end);
-            
+
             if (items.length === 0) {
                 hasMore = false;
                 showNoMore();
                 return;
             }
 
-            // 移除加载状态
             var loadingEl = document.querySelector('.loading-indicator');
             if (loadingEl) loadingEl.remove();
 
@@ -1245,7 +1227,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 grid.appendChild(card);
             });
 
-            // 如果还有更多数据，添加加载指示器
             if (page < totalPages) {
                 var loadingDiv = document.createElement('div');
                 loadingDiv.className = 'loading-indicator';
@@ -1256,43 +1237,35 @@ document.addEventListener('DOMContentLoaded', function() {
                 hasMore = false;
                 showNoMore();
             }
-            
-            // ★★★ 解锁 ★★★
+
             isLoading = false;
         }
 
         // ============================================================
-        // 6.3 加载更多（滚动触发）- ★★★ 加锁防止叠加 ★★★
+        // 6.4 加载更多
         // ============================================================
         function loadMore() {
             if (isLoading || !hasMore) return;
-            
-            var data = filteredData.length > 0 ? filteredData : allData;
-            var total = Math.ceil(data.length / PAGE_SIZE);
+            var total = Math.ceil(filteredData.length / PAGE_SIZE);
             if (currentPage >= total) {
                 hasMore = false;
                 showNoMore();
                 return;
             }
-            
             isLoading = true;
             var nextPage = currentPage + 1;
-            
             var loadingEl = document.getElementById('loadingIndicator');
             if (loadingEl) {
                 loadingEl.innerHTML = '<i class="fas fa-spinner"></i> 加载中...';
             }
-            
             renderPage(nextPage);
-            
-            // ★★★ 安全解锁 ★★★
             setTimeout(function() {
                 isLoading = false;
             }, 300);
         }
 
         // ============================================================
-        // 6.4 滚动检测 - ★★★ 加防抖 ★★★
+        // 6.5 滚动检测
         // ============================================================
         function checkScroll() {
             if (grid.scrollTop > 500) {
@@ -1308,7 +1281,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 var scrollTop = grid.scrollTop;
                 var scrollHeight = grid.scrollHeight;
                 var clientHeight = grid.clientHeight;
-                
+
                 if (scrollHeight - scrollTop - clientHeight < 300) {
                     loadMore();
                 }
@@ -1317,14 +1290,14 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // ============================================================
-        // 6.5 回到顶部
+        // 6.6 回到顶部
         // ============================================================
         backToTop.addEventListener('click', function() {
             grid.scrollTo({ top: 0, behavior: 'smooth' });
         });
 
         // ============================================================
-        // 6.6 显示状态
+        // 6.7 显示状态
         // ============================================================
         function showEmpty() {
             grid.innerHTML =
@@ -1341,20 +1314,21 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // ============================================================
-        // 6.7 搜索
+        // 6.8 搜索
         // ============================================================
         function doSearch() {
             var keyword = searchInput.value.trim().toLowerCase();
             if (!keyword) {
-                filteredData = [];
-                grid.innerHTML = '';
-                currentPage = 1;
-                hasMore = true;
-                isLoading = false;
-                renderPage(1);
+                applyFilterAndRender();
                 return;
             }
-            filteredData = allData.filter(function(item) {
+            var dataToSearch = allData;
+            if (currentRegion !== 'all') {
+                dataToSearch = allData.filter(function(item) {
+                    return item.region === currentRegion;
+                });
+            }
+            filteredData = dataToSearch.filter(function(item) {
                 var copyright = (item.copyright || '').toLowerCase();
                 var date = item.date || '';
                 var dateClean = date.replace(/-/g, '');
@@ -1378,20 +1352,35 @@ document.addEventListener('DOMContentLoaded', function() {
         searchInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') doSearch(); });
         homeBtn.addEventListener('click', function() {
             searchInput.value = '';
+            applyFilterAndRender();
+            toggleNav(false);
+        });
+
+        // ============================================================
+        // 6.9 地区切换
+        // ============================================================
+        function changeRegion(region) {
+            currentRegion = region;
             filteredData = [];
-            grid.innerHTML = '';
             currentPage = 1;
             hasMore = true;
-            isLoading = false;
-            totalPages = Math.ceil(allData.length / PAGE_SIZE);
-            renderPage(1);
+            grid.innerHTML = '';
+            applyFilterAndRender();
             toggleNav(false);
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            var regionSelect = document.getElementById('regionSelect');
+            if (regionSelect) {
+                regionSelect.addEventListener('change', function(e) {
+                    changeRegion(this.value);
+                });
+            }
         });
 
         // ============================================================
         // 7. 大图预览
         // ============================================================
-
         function openPreview(index) {
             if (!allData || allData.length === 0) return;
             if (index < 0) index = 0;
@@ -1427,7 +1416,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 var touch = e.changedTouches[0];
                 var deltaX = touch.clientX - startX;
                 var deltaY = touch.clientY - startY;
-                
+
                 if (Math.abs(deltaX) > 30 && Math.abs(deltaX) > Math.abs(deltaY) * 1.2) {
                     if (deltaX > 0) {
                         showPreview(currentPreviewIndex - 1);
@@ -1534,8 +1523,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
         closePreviewBtn.addEventListener('click', closePreview);
 
-                // ============================================================
-        // 7.1 下载下拉菜单（支持 mobile 和 mobile_s 动态裁剪）
+        // ============================================================
+        // 7.1 下载
         // ============================================================
         downloadBtn.addEventListener('click', function(e) {
             e.stopPropagation();
@@ -1556,12 +1545,11 @@ document.addEventListener('DOMContentLoaded', function() {
             downloadMenu.classList.remove('show');
         });
 
-        // 核心下载函数
         function downloadImage(index, resolution) {
             if (!allData || allData.length === 0) return;
             var item = allData[index];
             if (!item) return;
-            
+
             var url = getImageUrl(item.jpg || item.webp || '');
             var resolutions = {
                 '4k': { w: 3840, h: 2160 },
@@ -1572,14 +1560,11 @@ document.addEventListener('DOMContentLoaded', function() {
             };
             var res = resolutions[resolution] || resolutions['fhd'];
             var downloadUrl = url;
-            
-            // 1. 准备图片下载地址
-            // ✅ 这里修改：包含 mobile_s
-            if (resolution === 'mobile' || resolution === 'mobile_s') { 
-                // 手机模式：我们需要先把原图加载到 Canvas 里截取，所以这里直接用原图清晰地址
+
+            if (resolution === 'mobile' || resolution === 'mobile_s') {
                 if (url.indexOf('th?id=') !== -1) {
                     var baseUrl = url.split('&')[0];
-                    downloadUrl = baseUrl + '&w=1920&h=1080'; // 手机比较吃资源，先拿个稍微清晰的横图
+                    downloadUrl = baseUrl + '&w=1920&h=1080';
                 }
             } else {
                 if (url.indexOf('th?id=') !== -1) {
@@ -1587,11 +1572,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     downloadUrl = baseUrl + '&w=' + res.w + '&h=' + res.h;
                 }
             }
-            
+
             var fileName = 'wallpaper_' + (item.date || '') + '_' + resolution + '.jpg';
-            
+
             console.log('📥 开始下载: ' + fileName);
-            
+
             fetch(downloadUrl, {
                 mode: 'cors',
                 headers: { 'Origin': window.location.origin }
@@ -1601,19 +1586,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 return response.blob();
             })
             .then(function(blob) {
-                // ★★★ 核心逻辑在这里 ★★★
-                // ✅ 这里修改：包含 mobile_s
                 if (resolution === 'mobile' || resolution === 'mobile_s') {
-                    // 如果是手机，调用裁剪函数，把当前分辨率传进去
                     return cropToMobile(blob, fileName, resolution);
                 } else {
-                    // 如果是 4K/FHD/HD，直接下载
                     return downloadBlob(blob, fileName);
                 }
             })
             .catch(function(err) {
                 console.warn('⚠️ 下载失败，使用备用方法:', err.message);
-                // 如果 Fetch 失败，最后兜底用 a 标签直接打开
                 var link = document.createElement('a');
                 link.href = downloadUrl + (downloadUrl.indexOf('?') === -1 ? '?' : '&') + '_t=' + Date.now();
                 link.download = fileName;
@@ -1624,50 +1604,43 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
-        // ★★★ 手机竖屏裁剪函数 (支持动态识别 1080x1920 和 768x1280) ★★★
         function cropToMobile(blob, fileName, resolution) {
             return new Promise(function(resolve, reject) {
                 var img = new Image();
                 var url = URL.createObjectURL(blob);
-                
+
                 img.onload = function() {
                     var canvas = document.createElement('canvas');
                     var ctx = canvas.getContext('2d');
-                    
-                    // ✅ 根据传入的 resolution 动态设定目标尺寸
+
                     var targetW = 1080;
                     var targetH = 1920;
                     if (resolution === 'mobile_s') {
                         targetW = 768;
                         targetH = 1280;
                     }
-                    
+
                     canvas.width = targetW;
                     canvas.height = targetH;
-                    
-                    // 计算裁剪区域（从正中间截取）
+
                     var imgRatio = img.width / img.height;
                     var targetRatio = targetW / targetH;
-                    
+
                     var sx, sy, sw, sh;
                     if (imgRatio > targetRatio) {
-                        // 原图太宽了（宽屏），以高度为基准，从左右两边中间取宽度
                         sh = img.height;
                         sw = img.height * targetRatio;
                         sx = (img.width - sw) / 2;
                         sy = 0;
                     } else {
-                        // 原图太高了，以宽度为基准，从上下两边中间取高度
                         sw = img.width;
                         sh = img.width / targetRatio;
                         sx = 0;
                         sy = (img.height - sh) / 2;
                     }
-                    
-                    // 绘制到指定尺寸的画布上
+
                     ctx.drawImage(img, sx, sy, sw, sh, 0, 0, targetW, targetH);
-                    
-                    // 将 Canvas 转为 Blob 并触发下载
+
                     canvas.toBlob(function(croppedBlob) {
                         if (croppedBlob) {
                             downloadBlob(croppedBlob, fileName);
@@ -1676,12 +1649,11 @@ document.addEventListener('DOMContentLoaded', function() {
                             reject('裁剪失败');
                         }
                     }, 'image/jpeg', 0.92);
-                    
+
                     URL.revokeObjectURL(url);
                 };
-                
+
                 img.onerror = function() {
-                    // 如果原图加载失败，直接下载原图 blob
                     console.warn('⚠️ 图片加载失败，直接下载原图');
                     downloadBlob(blob, fileName);
                     resolve();
@@ -1690,7 +1662,6 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
-        // ★★★ 通用的 Blob 下载函数 ★★★
         function downloadBlob(blob, fileName) {
             var link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
@@ -1788,13 +1759,10 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         })();
 
-        // ★★★ 绑定滚动事件 ★★★
         grid.addEventListener('scroll', checkScroll);
         window.addEventListener('resize', checkScroll);
-        
-        // ★★★ MutationObserver 只监控新增卡片，不触发加载 ★★★
+
         var observer = new MutationObserver(function() {
-            // 只更新回到顶部按钮状态
             if (grid.scrollTop > 500) {
                 backToTop.classList.add('visible');
             } else {

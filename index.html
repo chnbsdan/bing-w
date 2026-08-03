@@ -1092,24 +1092,35 @@ html, body {
 async function loadData() {
     showProgress();
     try {
-        // ★★★ 从 API 获取数据，支持地区筛选 ★★★
-       var url = BASE_PATH + `/api/list?page=1&size=200`;
-        var res = await fetch(url);
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        var result = await res.json();
+        // 请求 API
+        var url = BASE_PATH + '/api/list?page=1&size=200';
+        console.log('📡 请求数据:', url);
         
-        // 解析 API 返回的数据结构
+        var res = await fetch(url);
+        console.log('📡 响应状态:', res.status);
+        
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        
+        var result = await res.json();
+        console.log('📦 返回数据:', result);
+        
+        // ★★★ 关键：检查数据解析路径 ★★★
         if (result.code === 0 && result.data && result.data.items) {
             allData = result.data.items;
+            console.log('✅ 加载成功，共 ' + allData.length + ' 张壁纸');
         } else {
+            console.error('❌ 数据格式异常:', result);
             throw new Error('Invalid data format');
         }
         
+        // 检查数据是否为空
         if (!Array.isArray(allData) || allData.length === 0) {
             showEmpty();
             hideProgress();
             return;
         }
+        
+        // 重置状态并渲染
         filteredData = [];
         totalNavCount.textContent = allData.length;
         totalPages = Math.ceil(allData.length / PAGE_SIZE);
@@ -1118,8 +1129,9 @@ async function loadData() {
         grid.innerHTML = '';
         renderPage(1);
         hideProgress();
+        
     } catch (err) {
-        console.error('加载失败:', err);
+        console.error('❌ 加载失败:', err);
         showEmpty();
         hideProgress();
     }

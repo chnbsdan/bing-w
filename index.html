@@ -45,6 +45,8 @@
             --meta-shadow: 0 2px 20px rgba(0,0,0,0.9), 0 0 40px rgba(0,0,0,0.4);
             --resolution-bg: #1a1a2e;
             --detail-panel-bg: #1a1a2e;
+            --select-option-bg: #1a1a2e;
+            --select-option-color: #fff;
         }
 
         [data-theme="light"] {
@@ -80,6 +82,8 @@
             --meta-shadow: 0 2px 20px rgba(255,255,255,0.9), 0 0 40px rgba(255,255,255,0.4);
             --resolution-bg: #ffffff;
             --detail-panel-bg: #ffffff;
+            --select-option-bg: #ffffff;
+            --select-option-color: #1a1a2e;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -113,7 +117,21 @@
         .navbar .search-box .search-btn:hover { background: rgba(79,195,247,0.25); color: var(--text-primary); }
         .navbar .region-selector { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; padding: 0 4px; }
         .navbar .region-selector label { color: var(--text-secondary); font-size: 12px; white-space: nowrap; }
-        .navbar .region-selector select { background: var(--input-bg); border: 1px solid var(--input-border); border-radius: 6px; color: var(--text-primary); padding: 4px 8px; font-size: 12px; outline: none; cursor: pointer; flex: 1; }
+        .navbar .region-selector select { 
+            background: var(--input-bg); 
+            border: 1px solid var(--input-border); 
+            border-radius: 6px; 
+            color: var(--text-primary); 
+            padding: 4px 8px; 
+            font-size: 12px; 
+            outline: none; 
+            cursor: pointer; 
+            flex: 1; 
+        }
+        .navbar .region-selector select option {
+            background: var(--select-option-bg);
+            color: var(--select-option-color);
+        }
         .navbar .nav-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
         .navbar .nav-actions a, .navbar .nav-actions button { background: var(--input-bg); border: none; color: var(--text-secondary); padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; transition: 0.2s; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; font-family: inherit; -webkit-tap-highlight-color: transparent; }
         .navbar .nav-actions a:hover, .navbar .nav-actions button:hover { background: var(--btn-hover); color: var(--text-primary); }

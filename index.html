@@ -45,8 +45,6 @@
             --meta-shadow: 0 2px 20px rgba(0,0,0,0.9), 0 0 40px rgba(0,0,0,0.4);
             --resolution-bg: #1a1a2e;
             --detail-panel-bg: #1a1a2e;
-            --region-tag-bg: rgba(0,0,0,0.6);
-            --region-tag-color: #fff;
         }
 
         [data-theme="light"] {
@@ -82,8 +80,6 @@
             --meta-shadow: 0 2px 20px rgba(255,255,255,0.9), 0 0 40px rgba(255,255,255,0.4);
             --resolution-bg: #ffffff;
             --detail-panel-bg: #ffffff;
-            --region-tag-bg: rgba(0,0,0,0.7);
-            --region-tag-color: #fff;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -148,25 +144,6 @@
         .card .info .date { font-size: 10px; color: rgba(255,255,255,0.4); }
         .card .info .title { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .card .info .copyright { font-size: 11px; color: rgba(255,255,255,0.4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-        /* 地区标签 - 显示在图片右上角 */
-        .card .region-tag {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            z-index: 4;
-            background: var(--region-tag-bg);
-            backdrop-filter: blur(4px);
-            color: var(--region-tag-color);
-            font-size: 10px;
-            font-weight: 600;
-            padding: 2px 8px;
-            border-radius: 4px;
-            letter-spacing: 0.5px;
-            border: 1px solid rgba(255,255,255,0.1);
-            pointer-events: none;
-            text-shadow: 0 1px 4px rgba(0,0,0,0.5);
-        }
 
         .loading-indicator { flex: 0 0 100%; text-align: center; padding: 20px 0 30px; color: var(--text-muted); font-size: 14px; }
         .loading-indicator i { animation: spin 1s linear infinite; display: inline-block; margin-right: 8px; }
@@ -270,7 +247,6 @@
         @media (max-width: 992px) { .card { flex: 0 0 calc(100% / 5); } }
         @media (max-width: 768px) {
             .card { flex: 0 0 calc(100% / 4); }
-            .card .region-tag { font-size: 8px; padding: 1px 6px; top: 4px; right: 4px; }
             .navbar { left: 52px; min-width: 160px; padding: 12px 14px; top: 10px; }
             .nav-toggle { font-size: 18px; padding: 5px 10px; top: 10px; left: 10px; }
             .arrow { font-size: 20px; padding: 12px 8px; }
@@ -288,13 +264,9 @@
             .comment-body { padding: 14px 16px 12px; }
             .back-to-top { width: 38px; height: 38px; font-size: 16px; bottom: 70px; right: 14px; }
         }
-        @media (max-width: 576px) { 
-            .card { flex: 0 0 calc(100% / 3); }
-            .card .region-tag { font-size: 7px; padding: 1px 4px; top: 3px; right: 3px; }
-        }
+        @media (max-width: 576px) { .card { flex: 0 0 calc(100% / 3); } }
         @media (max-width: 400px) {
             .card { flex: 0 0 calc(100% / 2); }
-            .card .region-tag { font-size: 7px; padding: 1px 4px; top: 3px; right: 3px; }
             .navbar { left: 48px; min-width: 140px; padding: 10px 12px; top: 8px; }
             .navbar .logo { font-size: 14px; }
             .navbar .search-box input { font-size: 12px; padding: 4px 8px; }
@@ -654,7 +626,6 @@
                     allData = Object.values(rawData).filter(Array.isArray)[0] || [];
                 }
 
-                // ⚠️ 关键改动：不再去重！保留所有数据，同一天不同地区的图片都显示
                 // 只过滤掉无效数据
                 allData = allData.filter(function(item) {
                     return item && item.date && (item.jpg || item.webp);
@@ -705,7 +676,7 @@
         }
 
         // ============================================================
-        // 6.3 渲染页面 - 显示地区标签
+        // 6.3 渲染页面
         // ============================================================
         function renderPage(page) {
             var data = filteredData;
@@ -739,14 +710,11 @@
                 var fallback = getImageUrl(item.jpg || '');
                 var placeholderSrc = getThumbnailUrl(thumbSrc);
 
-                // 地区标签 - 显示在右上角
-                var regionDisplay = item.region || '';
-                var regionLabel = regionDisplay.toUpperCase();
+                var regionLabel = (item.region || '').toUpperCase();
 
                 card.innerHTML =
                     '<div class="placeholder-bg" style="background-image: url(' + placeholderSrc + ');"></div>' +
                     '<img src="' + thumbSrc + '" alt="' + (item.copyright || item.date) + '" loading="lazy" />' +
-                    '<div class="region-tag">' + regionLabel + '</div>' +
                     '<div class="info">' +
                     '<div class="date">' + item.date + ' · ' + regionLabel + '</div>' +
                     '<div class="title">' + (item.copyright || '无标题') + '</div>' +
@@ -778,14 +746,12 @@
                 card.addEventListener('click', function() {
                     var targetIndex = -1;
                     for (var i = 0; i < allData.length; i++) {
-                        // 用日期+地区来精确匹配
                         if (allData[i].date === item.date && allData[i].region === item.region) {
                             targetIndex = i;
                             break;
                         }
                     }
                     if (targetIndex === -1) {
-                        // 如果精确匹配失败，尝试只用日期
                         for (var j = 0; j < allData.length; j++) {
                             if (allData[j].date === item.date) {
                                 targetIndex = j;
@@ -1323,7 +1289,6 @@
         console.log('💡 留言按钮在导航栏（汉堡菜单）内');
         console.log('💡 评论系统: Twikoo');
         console.log('📜 滚动加载模式已启用');
-        console.log('🏷️ 地区标签显示在图片右上角');
 
         window.openComment = openComment;
 

@@ -551,7 +551,7 @@
         });
 
         // ============================================================
-        // 6. 数据加载
+        // 6. 数据加载 - 直接读取 data/wallpapers.json
         // ============================================================
         var allData = [];
         var currentRegion = 'all';
@@ -601,37 +601,53 @@
         async function loadData() {
             showProgress();
             try {
-                var url = BASE_PATH + '/api/list?page=1&size=200';
+                // 直接读取 data/wallpapers.json
+                var url = BASE_PATH + '/data/wallpapers.json';
                 console.log('📡 请求数据:', url);
 
                 var res = await fetch(url);
                 console.log('📡 响应状态:', res.status);
 
-                if (!res.ok) throw new Error('HTTP ' + res.status);
+                if (!res.ok) throw new Error('HTTP ' + res.status + ' - 请确保 data/wallpapers.json 文件存在');
 
-                var result = await res.json();
-                console.log('📦 返回数据:', result);
+                var rawData = await res.json();
+                console.log('📦 返回数据:', rawData);
 
-                if (result.code === 0 && result.data && result.data.items) {
-                    var rawData = result.data.items;
-                    // 去重：按日期去重
-                    var seen = {};
-                    var uniqueData = [];
-                    rawData.forEach(function(item) {
-                        if (!seen[item.date]) {
-                            seen[item.date] = true;
-                            uniqueData.push(item);
-                        }
-                    });
-                    allData = uniqueData;
-                    console.log('✅ 加载成功，共 ' + allData.length + ' 张壁纸（去重后）');
+                // 判断数据格式：如果是数组直接使用，如果是对象且有 data 或 items 字段则提取
+                if (Array.isArray(rawData)) {
+                    allData = rawData;
+                } else if (rawData.data && Array.isArray(rawData.data)) {
+                    allData = rawData.data;
+                } else if (rawData.items && Array.isArray(rawData.items)) {
+                    allData = rawData.items;
+                } else if (rawData.list && Array.isArray(rawData.list)) {
+                    allData = rawData.list;
                 } else {
-                    console.error('❌ 数据格式异常:', result);
-                    throw new Error('Invalid data format');
+                    console.warn('⚠️ 未知数据格式，尝试作为数组处理:', rawData);
+                    allData = Object.values(rawData).filter(Array.isArray)[0] || [];
                 }
 
+                // 去重：按日期去重
+                var seen = {};
+                var uniqueData = [];
+                allData.forEach(function(item) {
+                    if (item && item.date && !seen[item.date]) {
+                        seen[item.date] = true;
+                        uniqueData.push(item);
+                    } else if (item && !item.date) {
+                        // 如果没有 date，用索引去重
+                        var key = JSON.stringify(item);
+                        if (!seen[key]) {
+                            seen[key] = true;
+                            uniqueData.push(item);
+                        }
+                    }
+                });
+                allData = uniqueData;
+                console.log('✅ 加载成功，共 ' + allData.length + ' 张壁纸（去重后）');
+
                 if (!Array.isArray(allData) || allData.length === 0) {
-                    showEmpty();
+                    showEmpty('暂无壁纸数据，请检查 data/wallpapers.json 文件是否正确');
                     hideProgress();
                     return;
                 }
@@ -641,7 +657,7 @@
 
             } catch (err) {
                 console.error('❌ 加载失败:', err);
-                showEmpty();
+                showEmpty('加载失败: ' + err.message + '\n请确保 data/wallpapers.json 文件存在且格式正确');
                 hideProgress();
             }
         }
@@ -698,6 +714,7 @@
                 var card = document.createElement('div');
                 card.className = 'card';
 
+                // 获取图片URL
                 var thumbSrc = getImageUrl(item.thumb || item.webp || item.jpg || '');
                 var fullImgSrc = getImageUrl(item.webp || item.jpg || '');
                 var fallback = getImageUrl(item.jpg || '');
@@ -821,9 +838,10 @@
         // ============================================================
         // 6.7 显示状态
         // ============================================================
-        function showEmpty() {
+        function showEmpty(msg) {
             grid.innerHTML =
-                '<div class="empty"><div class="icon"><i class="fas fa-image"></i></div><div>暂无壁纸数据</div></div>';
+                '<div class="empty"><div class="icon"><i class="fas fa-image"></i></div><div>' + (msg || '暂无壁纸数据') +
+                '</div></div>';
         }
 
         function showNoMore() {
@@ -852,9 +870,13 @@
             }
             filteredData = dataToSearch.filter(function(item) {
                 var copyright = (item.copyright || '').toLowerCase();
+                var description = (item.description || '').toLowerCase();
                 var date = item.date || '';
                 var dateClean = date.replace(/-/g, '');
-                return copyright.indexOf(keyword) !== -1 || date.indexOf(keyword) !== -1 || dateClean.indexOf(keyword) !== -1;
+                return copyright.indexOf(keyword) !== -1 ||
+                    description.indexOf(keyword) !== -1 ||
+                    date.indexOf(keyword) !== -1 ||
+                    dateClean.indexOf(keyword) !== -1;
             });
             if (filteredData.length === 0) {
                 grid.innerHTML =

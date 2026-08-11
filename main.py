@@ -1,4 +1,4 @@
-# main.py - 全球地区版
+# main.py - 只修改地区列表，其他全部保留
 
 import os
 import time
@@ -18,46 +18,46 @@ url_base = "https://cn.bing.com"
 img_prefix = "BW"
 MSG_LEN = 50
 
-# ★★★ 全球所有地区列表 ★★★
+# ★★★ 只改这里：扩展到全球所有地区 ★★★
 REGIONS = [
     # 亚洲
-    'zh-CN', 'zh-HK', 'zh-TW',  # 中国（简体/香港/台湾）
-    'ja-JP', 'ko-KR',           # 日本、韩国
-    'hi-IN', 'ta-IN', 'te-IN',  # 印度
-    'id-ID', 'ms-MY',           # 印尼、马来西亚
-    'th-TH', 'vi-VN',           # 泰国、越南
-    'fil-PH',                   # 菲律宾
-    'ar-SA', 'ar-AE',           # 沙特、阿联酋
-    'he-IL', 'tr-TR',           # 以色列、土耳其
+    'zh-CN', 'zh-HK', 'zh-TW',
+    'ja-JP', 'ko-KR',
+    'hi-IN', 'ta-IN', 'te-IN',
+    'id-ID', 'ms-MY',
+    'th-TH', 'vi-VN',
+    'fil-PH',
+    'ar-SA', 'ar-AE',
+    'he-IL', 'tr-TR',
     
     # 欧洲
-    'en-GB', 'en-US',           # 英国、美国
-    'fr-FR', 'de-DE',           # 法国、德国
-    'it-IT', 'es-ES',           # 意大利、西班牙
-    'pt-PT', 'pt-BR',           # 葡萄牙、巴西
-    'nl-NL', 'be-NL',           # 荷兰
-    'sv-SE', 'da-DK',           # 瑞典、丹麦
-    'no-NO', 'fi-FI',           # 挪威、芬兰
-    'pl-PL', 'cs-CZ',           # 波兰、捷克
-    'hu-HU', 'ro-RO',           # 匈牙利、罗马尼亚
-    'bg-BG', 'el-GR',           # 保加利亚、希腊
-    'hr-HR', 'sl-SI',           # 克罗地亚、斯洛文尼亚
-    'et-EE', 'lv-LV',           # 爱沙尼亚、拉脱维亚
-    'lt-LT', 'sk-SK',           # 立陶宛、斯洛伐克
-    'uk-UA', 'ru-RU',           # 乌克兰、俄罗斯
+    'en-GB', 'en-US',
+    'fr-FR', 'de-DE',
+    'it-IT', 'es-ES',
+    'pt-PT', 'pt-BR',
+    'nl-NL', 'be-NL',
+    'sv-SE', 'da-DK',
+    'no-NO', 'fi-FI',
+    'pl-PL', 'cs-CZ',
+    'hu-HU', 'ro-RO',
+    'bg-BG', 'el-GR',
+    'hr-HR', 'sl-SI',
+    'et-EE', 'lv-LV',
+    'lt-LT', 'sk-SK',
+    'uk-UA', 'ru-RU',
     
     # 美洲
-    'en-CA', 'fr-CA',           # 加拿大（英语/法语）
-    'es-MX', 'es-AR',           # 墨西哥、阿根廷
-    'es-CL', 'es-CO',           # 智利、哥伦比亚
-    'es-PE', 'es-VE',           # 秘鲁、委内瑞拉
+    'en-CA', 'fr-CA',
+    'es-MX', 'es-AR',
+    'es-CL', 'es-CO',
+    'es-PE', 'es-VE',
     
     # 大洋洲
-    'en-AU', 'en-NZ',           # 澳大利亚、新西兰
+    'en-AU', 'en-NZ',
     
     # 非洲
-    'af-ZA', 'en-ZA',           # 南非（南非语/英语）
-    'ar-EG', 'ar-MA',           # 埃及、摩洛哥
+    'af-ZA', 'en-ZA',
+    'ar-EG', 'ar-MA',
 ]
 
 def get_current_time():
@@ -68,7 +68,7 @@ def notify(message):
 
 def create_parser():
     parser = argparse.ArgumentParser(
-        description='Bing Wallpaper Fetcher - Global Edition',
+        description='Bing Wallpaper Fetcher',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     group = parser.add_mutually_exclusive_group()
@@ -83,8 +83,6 @@ def create_parser():
     parser.add_argument('--column-number', type=int, default=3, help='Number of images per row in HTML')
     parser.add_argument('--use-wget', action='store_true', help='Use system wget to download data')
     parser.add_argument('--save-raw', type=str, help='Save raw data to a file without merging')
-    # ★★★ 新增：只抓取指定地区 ★★★
-    parser.add_argument('--regions', type=str, help='Comma-separated list of regions to fetch (e.g. "zh-CN,en-US,ja-JP")')
     return parser
 
 def validate_arguments(args):
@@ -143,67 +141,46 @@ def fetch_region(region: str) -> list:
             'region': region
         }]
     except Exception as e:
-        # 静默跳过失败的地区（有些地区可能不支持）
-        # notify(f"⚠️ Region {region} failed: {str(e)}")
+        notify(f"Failed to fetch region {region}: {str(e)}")
         return []
 
 def update_database(existing_df: pd.DataFrame) -> pd.DataFrame:
     """安全合并：保留所有历史，只追加新数据，按图片ID去重"""
     
+    # ★★★ 核心修复1：始终保留历史数据 ★★★
     if existing_df is None or len(existing_df) == 0:
         existing_df = pd.DataFrame(columns=['date', 'title', 'url', 'description', 'region'])
     
+    # 确保有 region 列
     if 'region' not in existing_df.columns:
         existing_df['region'] = 'zh-CN'
     
-    # ★★★ 确定要抓取哪些地区 ★★★
-    regions_to_fetch = REGIONS
-    
-    # 如果指定了 --regions，只抓取指定的地区
-    if hasattr(args, 'regions') and args.regions:
-        custom_regions = [r.strip() for r in args.regions.split(',')]
-        regions_to_fetch = [r for r in REGIONS if r in custom_regions]
-        if not regions_to_fetch:
-            notify(f"⚠️ No valid regions found in: {args.regions}")
-            regions_to_fetch = REGIONS
-    
     all_new_records = []
-    success_count = 0
-    fail_count = 0
     
-    total_regions = len(regions_to_fetch)
-    notify(f"🌍 开始抓取 {total_regions} 个地区的壁纸...")
-    
-    for i, region in enumerate(regions_to_fetch, 1):
-        # 显示进度
-        print(f"   [{i}/{total_regions}] {region}...", end=' ')
-        
+    for region in REGIONS:
+        notify(f'Requesting Bing API for region: {region}...')
         records = fetch_region(region)
         if records:
             all_new_records.extend(records)
-            success_count += 1
-            print(f"✅")
-        else:
-            fail_count += 1
-            print(f"❌")
-    
-    notify(f"📊 成功: {success_count}，失败: {fail_count}，总计: {total_regions}")
+            notify(f'Region {region} fetched successfully')
     
     if not all_new_records:
-        notify("⚠️ 没有抓取到任何新数据")
+        notify("No new records fetched")
         return existing_df
     
     new_df = pd.DataFrame(all_new_records)
     
-    # 合并新旧数据
+    # ★★★ 核心修复2：合并新旧数据 ★★★
     combined_df = pd.concat([existing_df, new_df], ignore_index=True)
     
-    # 按图片ID去重
+    # ★★★ 核心修复3：按图片ID去重 ★★★
     combined_df['image_id'] = combined_df['url'].apply(extract_image_id)
-    combined_df = combined_df.drop_duplicates(subset=['date', 'image_id'], keep='first')
-    combined_df = combined_df.drop(columns=['image_id'])
     
-    # 按日期排序（最新的在前）
+    # 按 (date, image_id) 去重，保留第一条（即历史数据优先）
+    combined_df = combined_df.drop_duplicates(subset=['date', 'image_id'], keep='first')
+    
+    # 删除辅助列，排序
+    combined_df = combined_df.drop(columns=['image_id'])
     combined_df = combined_df.sort_values('date', ascending=False).reset_index(drop=True)
     
     # 保存
@@ -218,30 +195,23 @@ def update_database(existing_df: pd.DataFrame) -> pd.DataFrame:
 
 def download_images_task(src_df, img_dir, cache_dir, img_prefix, use_wget):
     downloaded_imgs = os.listdir(img_dir) if os.path.exists(img_dir) else []
-    total = len(src_df)
-    downloaded_count = 0
-    
-    for i, (date_str, url) in enumerate(zip(src_df['date'], src_df['url']), 1):
+    for date_str, url in zip(src_df['date'], src_df['url']):
         try:
             target_file = f'{img_prefix}-{date_str[2:]}.jpg'
             if target_file in downloaded_imgs:
-                downloaded_count += 1
                 continue
             cache_file = f'{cache_dir}/img_cache'
             if use_wget:
                 os.system(f'wget -q -O {cache_file} {url}')
             else:
-                response = requests.get(url, timeout=30)
+                response = requests.get(url)
                 response.raise_for_status()
                 with open(cache_file, 'wb') as f:
                     f.write(response.content)
             file_op.move_files(cache_file, os.path.join(img_dir, target_file))
-            notify(f'[{i}/{total}] {target_file} downloaded')
-            downloaded_count += 1
+            notify(f'{target_file} downloaded')
         except Exception as e:
-            notify(f'[{i}/{total}] Download failed: {str(e)}')
-    
-    notify(f"📥 下载完成: {downloaded_count}/{total} 张图片")
+            notify(f"Download failed: {str(e)}")
 
 def generate_html_task(src_df, subpages_dir, column_number):
     try:
@@ -261,8 +231,8 @@ def generate_html_task(src_df, subpages_dir, column_number):
         if num > 0:
             file_op.copy_files(f'{cache_dir}/index.html', 'wallpaper/')
             file_op.copy_files(f'{cache_dir}/page-*.html', subpages_dir)
-        notify(f'✅ 生成 wallpaper/index.html')
-        notify(f'✅ 生成 {num} 个子页面到 {subpages_dir}/')
+        notify(f'Successfully generated wallpaper/index.html')
+        notify(f'Generated {num} subpages to {subpages_dir}/')
     except Exception as e:
         notify(f"HTML generation failed: {str(e)}")
         raise
@@ -289,7 +259,7 @@ if __name__ == "__main__":
     
     try:
         src = load_database(database, args.no_history)
-        notify(f"📂 加载了 {len(src)} 条历史记录")
+        notify(f"Loaded {len(src)} existing records")
     except FileNotFoundError as e:
         print(f"Error: {str(e)}")
         exit(1)
@@ -300,6 +270,7 @@ if __name__ == "__main__":
         except Exception as e:
             notify(f"Update failed: {str(e)}")
     
+    # ★★★ 支持 --save-raw ★★★
     if hasattr(args, 'save_raw') and args.save_raw:
         src.to_csv(args.save_raw, index=False, encoding='utf-8')
         notify(f"✅ Raw data saved to {args.save_raw}")
@@ -323,11 +294,11 @@ if __name__ == "__main__":
         try:
             file_op.remove_files(f'{cache_dir}/img_cache')
             file_op.remove_files(f'{cache_dir}/*.html')
-            notify("🧹 Cache files cleaned")
+            notify("Cache files cleaned")
         except Exception as e:
             notify(f"Failed to clean cache: {str(e)}")
     else:
-        notify("💾 Cache files retained")
+        notify("Cache files retained")
     
     print('<' * MSG_LEN, end='\n\n')
     exit(0)

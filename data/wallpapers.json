@@ -1,5 +1,32 @@
 [
   {
+    "date": "2026-10-01",
+    "copyright": "Elle nous fait tourner la tête",
+    "description": "La tour Eiffel au coucher de soleil, Paris (© Alexander Spatari/Getty Images)",
+    "jpg": "https://cn.bing.com/th?id=OHR.ParisSunset_FR-FR0051640032_UHD.jpg",
+    "webp": "https://cn.bing.com/th?id=OHR.ParisSunset_FR-FR0051640032_UHD.jpg",
+    "thumb": "https://cn.bing.com/th?id=OHR.ParisSunset_FR-FR0051640032_400x240.jpg",
+    "region": "fr-FR"
+  },
+  {
+    "date": "2026-10-01",
+    "copyright": "在花岗岩中读懂时间",
+    "description": "奥姆斯特德观景点的日落，优胜美地国家公园，加利福尼亚州，美国 (© Robb Hirsch/Tandem Stills + Motion)",
+    "jpg": "https://cn.bing.com/th?id=OHR.OlmstedPoint_ZH-CN4182671075_UHD.jpg",
+    "webp": "https://cn.bing.com/th?id=OHR.OlmstedPoint_ZH-CN4182671075_UHD.jpg",
+    "thumb": "https://cn.bing.com/th?id=OHR.OlmstedPoint_ZH-CN4182671075_400x240.jpg",
+    "region": "zh-CN"
+  },
+  {
+    "date": "2026-10-01",
+    "copyright": "A face you don't forget",
+    "description": "Male bearded reedling, Norfolk, England (© Andrew Sproule/Shutterstock)",
+    "jpg": "https://cn.bing.com/th?id=OHR.BeardReedling_EN-US0124350202_UHD.jpg",
+    "webp": "https://cn.bing.com/th?id=OHR.BeardReedling_EN-US0124350202_UHD.jpg",
+    "thumb": "https://cn.bing.com/th?id=OHR.BeardReedling_EN-US0124350202_400x240.jpg",
+    "region": "en-US"
+  },
+  {
     "date": "2026-09-30",
     "copyright": "Der Klang der Alpen",
     "description": "Alphornbläser in Bayern (© U. J. Alexander/Shutterstock)",
